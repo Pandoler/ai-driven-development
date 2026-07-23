@@ -1,0 +1,286 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --text: #1f2530;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --danger: #dc2626;
+  --ok: #16a34a;
+  --border: #e2e5ea;
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 12px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-header {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+}
+
+.tagline {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+h2 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input[type='text'],
+input[type='number'],
+select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  min-width: 0;
+  width: 100%;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.unit {
+  color: var(--muted);
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+/* 合計金額 */
+.total-input label {
+  font-weight: 700;
+}
+
+.total-input-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.total-input-field input {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* メンバー */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.section-header h2 {
+  margin-bottom: 0;
+}
+
+.btn-add {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.member-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  align-items: center;
+}
+
+.member-row:first-of-type {
+  border-top: none;
+}
+
+.member-name {
+  grid-column: 1 / 2;
+  grid-row: 1;
+}
+
+.btn-remove {
+  grid-column: 2 / 3;
+  grid-row: 1;
+  justify-self: end;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.btn-remove:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.member-role {
+  grid-column: 1 / 2;
+  grid-row: 2;
+}
+
+.member-value {
+  grid-column: 2 / 3;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.member-value input {
+  width: 80px;
+  text-align: right;
+}
+
+/* 端数設定 */
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.option-row label {
+  flex: 0 0 8em;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* 結果 */
+.warnings {
+  list-style: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.payments {
+  list-style: none;
+}
+
+.payments li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.payments li.negative .payment-amount {
+  color: var(--danger);
+}
+
+.payment-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-mode {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.payment-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-summary {
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  color: var(--muted);
+}
+
+.summary-row.surplus {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.summary-row.surplus.negative {
+  color: var(--danger);
+}
+
+.summary-row.ok {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.btn-copy {
+  margin-top: 14px;
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-copy:active {
+  opacity: 0.85;
+}
