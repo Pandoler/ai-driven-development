@@ -42,8 +42,9 @@ type RoundingUnit = 1 | 10 | 100 | 500;
 
 /** 丸め差額の処理方法 */
 type RemainderPolicy =
-  | { type: 'absorb'; memberId: string } // 指定メンバーが差額を吸収
-  | { type: 'collectUp' };               // 全員切り上げ、余りを表示
+  | { type: 'absorb'; memberId: string }         // 四捨五入し、指定メンバーが差額を吸収
+  | { type: 'coverShortfall'; memberId: string } // 全員切り捨て、不足分を指定メンバーが負担
+  | { type: 'collectUp' };                       // 全員切り上げ、余りを表示
 
 interface SplitInput {
   total: number;
@@ -82,6 +83,8 @@ const ROLE_PRESETS = [
 4. 各倍率メンバーの理論値 raw = remaining × (weight / weightSum)
 5. 丸め:
    - absorb 方式: raw を丸め単位で四捨五入 → 合計と総額の差を吸収メンバーに加減算
+   - coverShortfall 方式: raw を丸め単位で切り捨て → 不足分（総額 − 合計 ≥ 0）を
+     負担メンバーに上乗せ。お釣りが出ず、負担者以外の支払額は理論値より増えない
    - collectUp 方式: raw を丸め単位で切り上げ → 集金合計 − 総額を surplus として表示
 6. 検証・警告:
    - fixedSum > total → 「固定額が総額を超えています」（残額 0、倍率メンバーは 0 円）

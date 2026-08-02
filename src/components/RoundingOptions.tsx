@@ -33,25 +33,32 @@ export function RoundingOptions({ roundingUnit, policy, members, onUnitChange, o
         <select
           id="remainder-policy"
           value={policy.type}
-          onChange={(e) =>
+          onChange={(e) => {
+            const type = e.target.value;
+            const memberId = 'memberId' in policy ? policy.memberId : (members[0]?.id ?? '');
             onPolicyChange(
-              e.target.value === 'collectUp'
+              type === 'collectUp'
                 ? { type: 'collectUp' }
-                : { type: 'absorb', memberId: members[0]?.id ?? '' },
-            )
-          }
+                : type === 'coverShortfall'
+                  ? { type: 'coverShortfall', memberId }
+                  : { type: 'absorb', memberId },
+            );
+          }}
         >
           <option value="collectUp">切り上げて集める（余りを表示）</option>
-          <option value="absorb">指定メンバーが差額を吸収</option>
+          <option value="absorb">四捨五入し、差額を指定メンバーが吸収</option>
+          <option value="coverShortfall">切り捨てて、不足分を指定メンバーが負担</option>
         </select>
       </div>
-      {policy.type === 'absorb' && (
+      {policy.type !== 'collectUp' && (
         <div className="option-row">
-          <label htmlFor="absorber">吸収するメンバー</label>
+          <label htmlFor="absorber">
+            {policy.type === 'absorb' ? '吸収するメンバー' : '負担するメンバー'}
+          </label>
           <select
             id="absorber"
             value={policy.memberId}
-            onChange={(e) => onPolicyChange({ type: 'absorb', memberId: e.target.value })}
+            onChange={(e) => onPolicyChange({ ...policy, memberId: e.target.value })}
           >
             {members.map((m) => (
               <option key={m.id} value={m.id}>

@@ -27,10 +27,10 @@ export default function App() {
     [members],
   );
 
-  // absorb の吸収者が削除済みなら先頭メンバーに付け替える
+  // 差額の負担者（吸収者）が削除済みなら先頭メンバーに付け替える
   const effectivePolicy = useMemo<RemainderPolicy>(() => {
-    if (policy.type === 'absorb' && !members.some((m) => m.id === policy.memberId)) {
-      return members.length > 0 ? { type: 'absorb', memberId: members[0].id } : policy;
+    if (policy.type !== 'collectUp' && !members.some((m) => m.id === policy.memberId)) {
+      return members.length > 0 ? { ...policy, memberId: members[0].id } : policy;
     }
     return policy;
   }, [policy, members]);
