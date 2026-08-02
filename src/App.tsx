@@ -6,6 +6,9 @@ import { ResultView } from './components/ResultView';
 import { computeSplit } from './lib/split';
 import type { Member, RemainderPolicy, RoundingUnit } from './types';
 
+/** 初期表示のメンバー数（飲み会の標準的な人数） */
+const INITIAL_MEMBER_COUNT = 5;
+
 let nextId = 1;
 function newMember(): Member {
   return { id: `m${nextId++}`, name: '', mode: { type: 'weight', weight: 1 }, rolePreset: 'peer' };
@@ -13,7 +16,9 @@ function newMember(): Member {
 
 export default function App() {
   const [total, setTotal] = useState(0);
-  const [members, setMembers] = useState<Member[]>(() => [newMember(), newMember()]);
+  const [members, setMembers] = useState<Member[]>(() =>
+    Array.from({ length: INITIAL_MEMBER_COUNT }, newMember),
+  );
   const [roundingUnit, setRoundingUnit] = useState<RoundingUnit>(100);
   const [policy, setPolicy] = useState<RemainderPolicy>({ type: 'collectUp' });
 
