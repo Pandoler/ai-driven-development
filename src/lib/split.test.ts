@@ -135,7 +135,61 @@ describe('丸め: absorb（指定メンバーが差額を吸収）', () => {
       type: 'absorb',
       memberId: 'missing',
     });
-    expect(r.warnings).toContain('差額を吸収するメンバーが選択されていません');
+    expect(r.warnings).toContain('差額を負担するメンバーが選択されていません');
+  });
+});
+
+describe('丸め: coverShortfall（全員切り捨て、不足分を指定メンバーが負担）', () => {
+  it('全員切り捨てで、不足分を負担者に上乗せする', () => {
+    const r = split(
+      11000,
+      [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)],
+      100,
+      { type: 'coverShortfall', memberId: 'kanji' },
+    );
+    // raw 3666.67 → 3600 に切り捨て、不足 200 を kanji が負担（3600 + 200 = 3800）
+    expect(amounts(r)).toEqual([3800, 3600, 3600]);
+    expect(r.collected).toBe(11000);
+    expect(r.surplus).toBe(0);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('absorb（四捨五入）と異なり、負担者以外の支払額が増えない', () => {
+    const members = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
+    const cover = split(11000, members, 100, { type: 'coverShortfall', memberId: 'kanji' });
+    const absorb = split(11000, members, 100, { type: 'absorb', memberId: 'kanji' });
+    // absorb は四捨五入で b, c が 3700 に上がるが、coverShortfall は 3600 のまま
+    expect(amounts(absorb)).toEqual([3600, 3700, 3700]);
+    expect(amounts(cover)).toEqual([3800, 3600, 3600]);
+  });
+
+  it('割り切れる場合は負担の上乗せなし', () => {
+    const r = split(30000, [weightMember('a', 1), weightMember('b', 1), weightMember('c', 1)], 100, {
+      type: 'coverShortfall',
+      memberId: 'a',
+    });
+    expect(amounts(r)).toEqual([10000, 10000, 10000]);
+    expect(r.surplus).toBe(0);
+  });
+
+  it('傾斜 + 固定額との組み合わせでも集金合計が総額と一致する', () => {
+    const r = split(
+      25000,
+      [fixedMember('boss', 10000), weightMember('kanji', 1), weightMember('junior', 0.5)],
+      500,
+      { type: 'coverShortfall', memberId: 'kanji' },
+    );
+    // 残 15000 を 1 : 0.5 で按分 → raw 10000 / 5000、切り捨てでそのまま、不足 0
+    expect(amounts(r)).toEqual([10000, 10000, 5000]);
+    expect(r.collected).toBe(25000);
+  });
+
+  it('負担者が指定されていないと警告する', () => {
+    const r = split(10000, [weightMember('a', 1), weightMember('b', 1)], 100, {
+      type: 'coverShortfall',
+      memberId: 'missing',
+    });
+    expect(r.warnings).toContain('差額を負担するメンバーが選択されていません');
   });
 });
 

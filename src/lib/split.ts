@@ -11,6 +11,10 @@ function ceilToUnit(value: number, unit: number): number {
   return Math.ceil(value / unit - EPSILON) * unit + 0;
 }
 
+function floorToUnit(value: number, unit: number): number {
+  return Math.floor(value / unit + EPSILON) * unit + 0;
+}
+
 /**
  * 割り勘計算の本体。
  * 固定額メンバーの合計を総額から差し引き、残額を倍率メンバーの weight 比で按分する。
@@ -48,18 +52,20 @@ export function computeSplit(input: SplitInput): SplitResult {
     const rounded =
       remainderPolicy.type === 'collectUp'
         ? ceilToUnit(raw, roundingUnit)
-        : roundToUnit(raw, roundingUnit);
+        : remainderPolicy.type === 'coverShortfall'
+          ? floorToUnit(raw, roundingUnit)
+          : roundToUnit(raw, roundingUnit);
     payments.set(m.id, rounded);
   }
 
-  if (remainderPolicy.type === 'absorb') {
+  if (remainderPolicy.type === 'absorb' || remainderPolicy.type === 'coverShortfall') {
     const absorber = members.find((m) => m.id === remainderPolicy.memberId);
     if (absorber) {
       const collected = [...payments.values()].reduce((a, b) => a + b, 0);
       const diff = total - collected;
       payments.set(absorber.id, (payments.get(absorber.id) ?? 0) + diff);
     } else {
-      warnings.push('差額を吸収するメンバーが選択されていません');
+      warnings.push('差額を負担するメンバーが選択されていません');
     }
   }
 
