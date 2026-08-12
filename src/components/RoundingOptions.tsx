@@ -48,28 +48,24 @@ export function RoundingOptions({
         <select
           id="remainder-policy"
           value={policy.type}
-          onChange={(e) => {
-            const type = e.target.value;
-            const memberId = 'memberId' in policy ? policy.memberId : (members[0]?.id ?? '');
+          onChange={(e) =>
             onPolicyChange(
-              type === 'collectUp'
+              e.target.value === 'collectUp'
                 ? { type: 'collectUp' }
-                : type === 'coverShortfall'
-                  ? { type: 'coverShortfall', memberId }
-                  : { type: 'absorb', memberId },
-            );
-          }}
+                : {
+                    type: 'coverShortfall',
+                    memberId: 'memberId' in policy ? policy.memberId : (members[0]?.id ?? ''),
+                  },
+            )
+          }
         >
           <option value="collectUp">切り上げて集める（余りを表示）</option>
-          <option value="absorb">四捨五入し、差額を指定メンバーが吸収</option>
           <option value="coverShortfall">切り捨てて、不足分を指定メンバーが負担</option>
         </select>
       </div>
       {policy.type !== 'collectUp' && (
         <div className="option-row">
-          <label htmlFor="absorber">
-            {policy.type === 'absorb' ? '吸収するメンバー' : '負担するメンバー'}
-          </label>
+          <label htmlFor="absorber">負担するメンバー</label>
           <select
             id="absorber"
             value={policy.memberId}

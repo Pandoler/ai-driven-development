@@ -1,3 +1,4 @@
+import { NumberField } from './NumberField';
 import { ROLE_PRESETS, presetByKey } from '../lib/presets';
 import type { Member } from '../types';
 
@@ -56,41 +57,27 @@ export function MemberRow({ member, placeholder, canRemove, onUpdate, onRemove }
       </select>
       {member.mode.type === 'weight' ? (
         <div className="member-value">
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={0.1}
+          <NumberField
             value={member.mode.weight}
-            onChange={(e) =>
+            step={0.1}
+            aria-label={`${placeholder} の倍率`}
+            onChange={(weight) =>
               // 倍率を手動で変えたらプリセット表示は解除してカスタム扱いにする
-              onUpdate({
-                ...member,
-                mode: { type: 'weight', weight: Math.max(0, Number(e.target.value) || 0) },
-                rolePreset: undefined,
-              })
+              onUpdate({ ...member, mode: { type: 'weight', weight }, rolePreset: undefined })
             }
           />
           <span className="unit">倍</span>
         </div>
       ) : (
         <div className="member-value">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
+          <NumberField
+            value={member.mode.amount}
+            integer
+            blankWhenZero
             step={100}
-            value={member.mode.amount === 0 ? '' : member.mode.amount}
             placeholder="0"
-            onChange={(e) =>
-              onUpdate({
-                ...member,
-                mode: {
-                  type: 'fixed',
-                  amount: Math.max(0, Math.floor(Number(e.target.value) || 0)),
-                },
-              })
-            }
+            aria-label={`${placeholder} の金額`}
+            onChange={(amount) => onUpdate({ ...member, mode: { type: 'fixed', amount } })}
           />
           <span className="unit">円</span>
         </div>

@@ -42,7 +42,6 @@ type RoundingUnit = 1 | 10 | 100 | 500;
 
 /** 丸め差額の処理方法 */
 type RemainderPolicy =
-  | { type: 'absorb'; memberId: string }         // 四捨五入し、指定メンバーが差額を吸収
   | { type: 'coverShortfall'; memberId: string } // 全員切り捨て、不足分を指定メンバーが負担
   | { type: 'collectUp' };                       // 全員切り上げ、余りを表示
 
@@ -56,7 +55,7 @@ interface SplitInput {
 interface SplitResult {
   payments: { memberId: string; amount: number }[];
   collected: number;   // 集金合計
-  surplus: number;     // 集金合計 − 総額（collectUp 時の余り、absorb 時は 0）
+  surplus: number;     // 集金合計 − 総額（collectUp 時の余り、coverShortfall 時は 0）
   isExact: boolean;    // 端数が出ないか。true なら policy を変えても結果は同じ
   warnings: string[];  // 固定額超過などの注意
 }
@@ -83,7 +82,6 @@ const ROLE_PRESETS = [
 3. 倍率メンバーの weight 合計 weightSum を求める
 4. 各倍率メンバーの理論値 raw = remaining × (weight / weightSum)
 5. 丸め:
-   - absorb 方式: raw を丸め単位で四捨五入 → 合計と総額の差を吸収メンバーに加減算
    - coverShortfall 方式: raw を丸め単位で切り捨て → 不足分（総額 − 合計 ≥ 0）を
      負担メンバーに上乗せ。お釣りが出ず、負担者以外の支払額は理論値より増えない
    - collectUp 方式: raw を丸め単位で切り上げ → 集金合計 − 総額を surplus として表示
@@ -98,9 +96,9 @@ const ROLE_PRESETS = [
 
 - 金額は**整数円**で扱う（浮動小数点の誤差を最終結果に持ち込まない。丸め前の按分のみ実数計算し、丸め時に整数化）
 - 丸め処理は「各人を丸めてから差額を 1 か所に寄せる」方式のため、**必ず集金合計が検算可能**
-- 差額の負担者（absorb / coverShortfall の memberId）は、他メンバーの丸め結果の残りを引き受ける。
-  したがって **両方式の差は「負担者以外の丸め方向」だけ**で決まり、
-  他メンバーの端数が丸め単位の半分未満なら四捨五入と切り捨ては同値になり、両方式の結果は一致する
+- 差額の負担者（coverShortfall の memberId）は、他メンバーの丸め結果の残りを引き受ける。
+  切り捨ては理論値を超えないため差額は常に 0 以上で、負担者の額は理論値以上になる
+  （固定額が総額を超える場合のみ負のケースがあり、警告で示す）
 - `isExact` は policy に依存しないため、UI 側はどのモードを選択中でも同じ判定を得られる
 
 ## 4. UI 設計（スマホファースト・1 画面）
@@ -134,7 +132,7 @@ const ROLE_PRESETS = [
 ## 5. テスト方針
 
 - `split.ts` に対する Vitest 単体テストを必須とする
-  - 均等割り／傾斜割り／固定額混在／丸め各単位／absorb・collectUp 両方式
+  - 均等割り／傾斜割り／固定額混在／丸め各単位／coverShortfall・collectUp 両方式
   - エッジケース: 固定額超過、weightSum=0、メンバー 1 人、総額 0、吸収者が負額
 - UI は手動確認を基本とし、必要になったらコンポーネントテストを追加
 

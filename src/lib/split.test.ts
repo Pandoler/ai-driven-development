@@ -14,7 +14,7 @@ function split(
   total: number,
   members: Member[],
   roundingUnit: RoundingUnit = 1,
-  remainderPolicy: RemainderPolicy = { type: 'absorb', memberId: members[0]?.id ?? '' },
+  remainderPolicy: RemainderPolicy = { type: 'coverShortfall', memberId: members[0]?.id ?? '' },
 ) {
   return computeSplit({ total, members, roundingUnit, remainderPolicy });
 }
@@ -56,7 +56,7 @@ describe('傾斜割り', () => {
 
   it('倍率0のメンバーは0円', () => {
     const r = split(20000, [weightMember('a', 1), weightMember('kanji', 0)], 1, {
-      type: 'absorb',
+      type: 'coverShortfall',
       memberId: 'a',
     });
     expect(amounts(r)).toEqual([20000, 0]);
@@ -92,53 +92,6 @@ describe('固定額との組み合わせ', () => {
   });
 });
 
-describe('丸め: absorb（指定メンバーが差額を吸収）', () => {
-  it('100円単位で丸め、差額を吸収者に寄せる', () => {
-    const r = split(
-      10000,
-      [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)],
-      100,
-      { type: 'absorb', memberId: 'kanji' },
-    );
-    // raw 3333.33 → 3300 に丸め、差額 400 を kanji が吸収
-    expect(amounts(r)).toEqual([3400, 3300, 3300]);
-    expect(r.collected).toBe(10000);
-    expect(r.surplus).toBe(0);
-  });
-
-  it('500円単位でも集金合計は総額と一致する', () => {
-    const r = split(
-      10000,
-      [weightMember('a', 1), weightMember('b', 1), weightMember('c', 1)],
-      500,
-      { type: 'absorb', memberId: 'a' },
-    );
-    expect(r.collected).toBe(10000);
-    expect(amounts(r)[1]).toBe(3500);
-    expect(amounts(r)[2]).toBe(3500);
-    expect(amounts(r)[0]).toBe(3000);
-  });
-
-  it('吸収者の支払額がマイナスになると警告する', () => {
-    const r = split(400, [weightMember('a', 1), weightMember('kanji', 0)], 500, {
-      type: 'absorb',
-      memberId: 'kanji',
-    });
-    // a は 400 → 500 に丸まり、kanji が -100 を吸収
-    expect(amounts(r)).toEqual([500, -100]);
-    expect(r.collected).toBe(400);
-    expect(r.warnings).toContain('kanji の支払額がマイナスになっています');
-  });
-
-  it('吸収者が指定されていないと警告する', () => {
-    const r = split(10000, [weightMember('a', 1), weightMember('b', 1)], 100, {
-      type: 'absorb',
-      memberId: 'missing',
-    });
-    expect(r.warnings).toContain('差額を負担するメンバーが選択されていません');
-  });
-});
-
 describe('丸め: coverShortfall（全員切り捨て、不足分を指定メンバーが負担）', () => {
   it('全員切り捨てで、不足分を負担者に上乗せする', () => {
     const r = split(
@@ -154,13 +107,39 @@ describe('丸め: coverShortfall（全員切り捨て、不足分を指定メン
     expect(r.warnings).toEqual([]);
   });
 
-  it('absorb（四捨五入）と異なり、負担者以外の支払額が増えない', () => {
-    const members = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
-    const cover = split(11000, members, 100, { type: 'coverShortfall', memberId: 'kanji' });
-    const absorb = split(11000, members, 100, { type: 'absorb', memberId: 'kanji' });
-    // absorb は四捨五入で b, c が 3700 に上がるが、coverShortfall は 3600 のまま
-    expect(amounts(absorb)).toEqual([3600, 3700, 3700]);
-    expect(amounts(cover)).toEqual([3800, 3600, 3600]);
+  it('負担者以外の支払額は理論値を超えない（お釣りが出ない）', () => {
+    const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
+    for (const total of [10000, 11000, 12345, 30300, 33333]) {
+      const r = split(total, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
+      const theoretical = total / 3;
+      for (const p of r.payments.filter((p) => p.memberId !== 'kanji')) {
+        expect(p.amount).toBeLessThanOrEqual(theoretical);
+      }
+      // 切り捨てた分は負担者が引き受けるので、集金合計は必ず総額ちょうど
+      expect(r.collected).toBe(total);
+      expect(r.surplus).toBe(0);
+    }
+  });
+
+  it('100円単位でも500円単位でも集金合計は総額と一致する', () => {
+    const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
+    // raw 3333.33 → 100円単位なら 3300、不足 100 を負担者が上乗せ
+    const r100 = split(10000, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
+    expect(amounts(r100)).toEqual([3400, 3300, 3300]);
+    expect(r100.collected).toBe(10000);
+    // 500円単位なら 3000、不足 1000 を負担者が上乗せ
+    const r500 = split(10000, ms, 500, { type: 'coverShortfall', memberId: 'kanji' });
+    expect(amounts(r500)).toEqual([4000, 3000, 3000]);
+    expect(r500.collected).toBe(10000);
+  });
+
+  it('固定額が総額を超える場合は負担者がマイナスになり警告する', () => {
+    const r = split(30000, [fixedMember('boss', 40000), weightMember('kanji', 1)], 100, {
+      type: 'coverShortfall',
+      memberId: 'kanji',
+    });
+    expect(amounts(r)).toEqual([40000, -10000]);
+    expect(r.warnings).toContain('kanji の支払額がマイナスになっています');
   });
 
   it('割り切れる場合は負担の上乗せなし', () => {
@@ -240,7 +219,6 @@ describe('isExact（端数が出ないかの判定）', () => {
     const ms = three();
     for (const p of [
       { type: 'collectUp' } as const,
-      { type: 'absorb', memberId: 'a' } as const,
       { type: 'coverShortfall', memberId: 'a' } as const,
     ]) {
       expect(split(30000, ms, 100, p).isExact).toBe(true);
@@ -252,7 +230,6 @@ describe('isExact（端数が出ないかの判定）', () => {
     const ms = three();
     const amountsOf = (p: RemainderPolicy) => amounts(split(30000, ms, 100, p));
     expect(split(30000, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
-    expect(amountsOf({ type: 'collectUp' })).toEqual(amountsOf({ type: 'absorb', memberId: 'a' }));
     expect(amountsOf({ type: 'collectUp' })).toEqual(
       amountsOf({ type: 'coverShortfall', memberId: 'a' }),
     );
@@ -295,26 +272,17 @@ describe('isExact（端数が出ないかの判定）', () => {
   });
 });
 
-describe('absorb と coverShortfall の違い', () => {
-  it('理論値が切り上げ方向に丸まるとき、両モードの結果は異なる', () => {
+describe('2 つのモードの違い', () => {
+  it('collectUp は全員切り上げで余りが出るが、coverShortfall は負担者が引き受けて総額ちょうどになる', () => {
     const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
-    // raw 3666.67 → 四捨五入は 3700、切り捨ては 3600 と分かれる
-    const absorb = split(11000, ms, 100, { type: 'absorb', memberId: 'kanji' });
+    const up = split(11000, ms, 100, { type: 'collectUp' });
     const cover = split(11000, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
-    expect(amounts(absorb)).toEqual([3600, 3700, 3700]);
+    // raw 3666.67 → 切り上げは 3700 ずつ集めて 100 円余る
+    expect(amounts(up)).toEqual([3700, 3700, 3700]);
+    expect(up.surplus).toBe(100);
+    // 切り捨ては 3600 ずつ、不足 200 を負担者が上乗せ
     expect(amounts(cover)).toEqual([3800, 3600, 3600]);
-    expect(absorb.isExact).toBe(false);
-  });
-
-  it('理論値が切り下げ方向に丸まるときは、両モードの結果が一致する（仕様どおり）', () => {
-    const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
-    // raw 3433.33 → 四捨五入も切り捨ても 3400 になるため、負担者の額も揃う
-    const absorb = split(10300, ms, 100, { type: 'absorb', memberId: 'kanji' });
-    const cover = split(10300, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
-    expect(amounts(absorb)).toEqual(amounts(cover));
-    expect(amounts(cover)).toEqual([3500, 3400, 3400]);
-    // 端数自体は出ているので、モード選択は引き続き有効
-    expect(cover.isExact).toBe(false);
+    expect(cover.surplus).toBe(0);
   });
 });
 
@@ -327,9 +295,9 @@ describe('エッジケース', () => {
     expect(r.warnings).toContain('残額を負担するメンバーがいません');
   });
 
-  it('全員倍率0でも absorb なら吸収者が全額負担する', () => {
+  it('全員倍率0でも coverShortfall なら負担者が全額を引き受ける', () => {
     const r = split(10000, [weightMember('kanji', 0), weightMember('b', 0)], 100, {
-      type: 'absorb',
+      type: 'coverShortfall',
       memberId: 'kanji',
     });
     expect(amounts(r)).toEqual([10000, 0]);
