@@ -2,10 +2,6 @@ import type { SplitInput, SplitResult } from '../types';
 
 const EPSILON = 1e-9;
 
-function roundToUnit(value: number, unit: number): number {
-  return Math.round(value / unit) * unit;
-}
-
 function ceilToUnit(value: number, unit: number): number {
   // + 0 で -0 を 0 に正規化する
   return Math.ceil(value / unit - EPSILON) * unit + 0;
@@ -56,18 +52,16 @@ export function computeSplit(input: SplitInput): SplitResult {
     const rounded =
       remainderPolicy.type === 'collectUp'
         ? ceilToUnit(raw, roundingUnit)
-        : remainderPolicy.type === 'coverShortfall'
-          ? floorToUnit(raw, roundingUnit)
-          : roundToUnit(raw, roundingUnit);
+        : floorToUnit(raw, roundingUnit);
     payments.set(m.id, rounded);
   }
 
-  if (remainderPolicy.type === 'absorb' || remainderPolicy.type === 'coverShortfall') {
-    const absorber = members.find((m) => m.id === remainderPolicy.memberId);
-    if (absorber) {
+  if (remainderPolicy.type === 'coverShortfall') {
+    const payer = members.find((m) => m.id === remainderPolicy.memberId);
+    if (payer) {
       const collected = [...payments.values()].reduce((a, b) => a + b, 0);
       const diff = total - collected;
-      payments.set(absorber.id, (payments.get(absorber.id) ?? 0) + diff);
+      payments.set(payer.id, (payments.get(payer.id) ?? 0) + diff);
     } else {
       warnings.push('差額を負担するメンバーが選択されていません');
     }
@@ -75,7 +69,7 @@ export function computeSplit(input: SplitInput): SplitResult {
 
   const remainingUncovered =
     remainderPolicy.type === 'collectUp' ||
-    !members.some((m) => m.id === (remainderPolicy as { memberId?: string }).memberId);
+    !members.some((m) => m.id === remainderPolicy.memberId);
   if (weightSum <= 0 && remaining > 0 && remainingUncovered) {
     warnings.push('残額を負担するメンバーがいません');
   }
