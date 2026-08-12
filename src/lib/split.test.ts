@@ -218,6 +218,106 @@ describe('丸め: collectUp（切り上げて余りを表示）', () => {
   });
 });
 
+describe('isExact（端数が出ないかの判定）', () => {
+  const three = () => [weightMember('a', 1), weightMember('b', 1), weightMember('c', 1)];
+
+  it('割り切れる場合は true', () => {
+    expect(split(30000, three(), 100, { type: 'collectUp' }).isExact).toBe(true);
+  });
+
+  it('端数が出る場合は false', () => {
+    expect(split(10000, three(), 100, { type: 'collectUp' }).isExact).toBe(false);
+  });
+
+  it('丸め単位を変えると判定も変わる', () => {
+    const ms = three();
+    // 1人 3400 円。100円単位なら割り切れるが、500円単位だと端数が出る
+    expect(split(10200, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
+    expect(split(10200, ms, 500, { type: 'collectUp' }).isExact).toBe(false);
+  });
+
+  it('選んだモードに関係なく同じ判定になる', () => {
+    const ms = three();
+    for (const p of [
+      { type: 'collectUp' } as const,
+      { type: 'absorb', memberId: 'a' } as const,
+      { type: 'coverShortfall', memberId: 'a' } as const,
+    ]) {
+      expect(split(30000, ms, 100, p).isExact).toBe(true);
+      expect(split(10000, ms, 100, p).isExact).toBe(false);
+    }
+  });
+
+  it('isExact が true のとき、どのモードでも支払額は同じ', () => {
+    const ms = three();
+    const amountsOf = (p: RemainderPolicy) => amounts(split(30000, ms, 100, p));
+    expect(split(30000, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
+    expect(amountsOf({ type: 'collectUp' })).toEqual(amountsOf({ type: 'absorb', memberId: 'a' }));
+    expect(amountsOf({ type: 'collectUp' })).toEqual(
+      amountsOf({ type: 'coverShortfall', memberId: 'a' }),
+    );
+  });
+
+  it('傾斜割りでも、全員の理論値が丸め単位ちょうどなら true', () => {
+    const ms = [weightMember('a', 1.5), weightMember('b', 1), weightMember('c', 0.5)];
+    // 30000 を 1.5:1:0.5 で按分 → 15000 / 10000 / 5000
+    expect(split(30000, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
+  });
+
+  it('傾斜割りで一部の理論値に端数が出れば false', () => {
+    const ms = [weightMember('a', 2), weightMember('b', 1)];
+    // 10000 を 2:1 で按分 → 6666.67 / 3333.33
+    expect(split(10000, ms, 100, { type: 'collectUp' }).isExact).toBe(false);
+  });
+
+  it('固定額を差し引いた残りが割り切れれば true', () => {
+    const ms = [fixedMember('boss', 10000), weightMember('a', 1), weightMember('b', 1)];
+    expect(split(30000, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
+  });
+
+  it('固定額が総額を超える場合は false（モードによって結果が変わるため）', () => {
+    const ms = [fixedMember('boss', 40000), weightMember('a', 1)];
+    expect(split(30000, ms, 100, { type: 'collectUp' }).isExact).toBe(false);
+  });
+
+  it('全員固定額で合計が総額と一致すれば true', () => {
+    const ms = [fixedMember('a', 10000), fixedMember('b', 5000)];
+    expect(split(15000, ms, 100, { type: 'collectUp' }).isExact).toBe(true);
+  });
+
+  it('負担者がいないのに残額がある場合は false', () => {
+    const ms = [weightMember('a', 0), weightMember('b', 0)];
+    expect(split(10000, ms, 100, { type: 'collectUp' }).isExact).toBe(false);
+  });
+
+  it('総額 0 は端数なし扱い', () => {
+    expect(split(0, three(), 100, { type: 'collectUp' }).isExact).toBe(true);
+  });
+});
+
+describe('absorb と coverShortfall の違い', () => {
+  it('理論値が切り上げ方向に丸まるとき、両モードの結果は異なる', () => {
+    const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
+    // raw 3666.67 → 四捨五入は 3700、切り捨ては 3600 と分かれる
+    const absorb = split(11000, ms, 100, { type: 'absorb', memberId: 'kanji' });
+    const cover = split(11000, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
+    expect(amounts(absorb)).toEqual([3600, 3700, 3700]);
+    expect(amounts(cover)).toEqual([3800, 3600, 3600]);
+    expect(absorb.isExact).toBe(false);
+  });
+
+  it('理論値が切り下げ方向に丸まるときは、両モードの結果が一致する（仕様どおり）', () => {
+    const ms = [weightMember('kanji', 1), weightMember('b', 1), weightMember('c', 1)];
+    // raw 3433.33 → 四捨五入も切り捨ても 3400 になるため、負担者の額も揃う
+    const absorb = split(10300, ms, 100, { type: 'absorb', memberId: 'kanji' });
+    const cover = split(10300, ms, 100, { type: 'coverShortfall', memberId: 'kanji' });
+    expect(amounts(absorb)).toEqual(amounts(cover));
+    expect(amounts(cover)).toEqual([3500, 3400, 3400]);
+    // 端数自体は出ているので、モード選択は引き続き有効
+    expect(cover.isExact).toBe(false);
+  });
+});
+
 describe('エッジケース', () => {
   it('全員倍率0で残額があると警告する', () => {
     const r = split(10000, [weightMember('a', 0), weightMember('b', 0)], 100, {

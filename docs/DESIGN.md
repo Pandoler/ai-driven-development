@@ -57,6 +57,7 @@ interface SplitResult {
   payments: { memberId: string; amount: number }[];
   collected: number;   // 集金合計
   surplus: number;     // 集金合計 − 総額（collectUp 時の余り、absorb 時は 0）
+  isExact: boolean;    // 端数が出ないか。true なら policy を変えても結果は同じ
   warnings: string[];  // 固定額超過などの注意
 }
 ```
@@ -86,7 +87,10 @@ const ROLE_PRESETS = [
    - coverShortfall 方式: raw を丸め単位で切り捨て → 不足分（総額 − 合計 ≥ 0）を
      負担メンバーに上乗せ。お釣りが出ず、負担者以外の支払額は理論値より増えない
    - collectUp 方式: raw を丸め単位で切り上げ → 集金合計 − 総額を surplus として表示
-6. 検証・警告:
+6. 端数判定 isExact:
+   - 全 raw が丸め単位の倍数（EPSILON 許容）かつ 理論上の集金合計 = total のとき true
+   - true のとき丸め・差額処理はいずれも働かないため、policy によらず結果は同一
+7. 検証・警告:
    - fixedSum > total → 「固定額が総額を超えています」（残額 0、倍率メンバーは 0 円）
    - weightSum = 0 かつ remaining > 0 → 「残額を負担するメンバーがいません」
    - 吸収メンバーの支払額が負になる場合 → 警告表示（計算はそのまま提示）
@@ -94,6 +98,10 @@ const ROLE_PRESETS = [
 
 - 金額は**整数円**で扱う（浮動小数点の誤差を最終結果に持ち込まない。丸め前の按分のみ実数計算し、丸め時に整数化）
 - 丸め処理は「各人を丸めてから差額を 1 か所に寄せる」方式のため、**必ず集金合計が検算可能**
+- 差額の負担者（absorb / coverShortfall の memberId）は、他メンバーの丸め結果の残りを引き受ける。
+  したがって **両方式の差は「負担者以外の丸め方向」だけ**で決まり、
+  他メンバーの端数が丸め単位の半分未満なら四捨五入と切り捨ては同値になり、両方式の結果は一致する
+- `isExact` は policy に依存しないため、UI 側はどのモードを選択中でも同じ判定を得られる
 
 ## 4. UI 設計（スマホファースト・1 画面）
 

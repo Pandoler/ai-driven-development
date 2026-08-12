@@ -82,6 +82,7 @@ export default function App() {
           roundingUnit={roundingUnit}
           policy={effectivePolicy}
           members={namedMembers}
+          isExact={result.isExact}
           onUnitChange={setRoundingUnit}
           onPolicyChange={setPolicy}
         />

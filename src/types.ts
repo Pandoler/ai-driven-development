@@ -32,5 +32,10 @@ export interface SplitResult {
   collected: number;
   /** 集金合計 − 総額（collectUp 時の余り。absorb 時は 0 になる） */
   surplus: number;
+  /**
+   * ちょうど割り切れて端数が出ないか。
+   * true のとき、どの RemainderPolicy を選んでも支払額は変わらない。
+   */
+  isExact: boolean;
   warnings: string[];
 }
