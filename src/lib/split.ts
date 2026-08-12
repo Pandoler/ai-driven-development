@@ -42,6 +42,9 @@ export function computeSplit(input: SplitInput): SplitResult {
     remaining = 0;
   }
 
+  /** 丸める前の理論値。端数が出るかの判定に使う */
+  const rawShares: number[] = [];
+
   for (const m of members) {
     if (m.mode.type !== 'weight') continue;
     if (weightSum <= 0) {
@@ -49,6 +52,7 @@ export function computeSplit(input: SplitInput): SplitResult {
       continue;
     }
     const raw = (remaining * m.mode.weight) / weightSum;
+    rawShares.push(raw);
     const rounded =
       remainderPolicy.type === 'collectUp'
         ? ceilToUnit(raw, roundingUnit)
@@ -82,11 +86,19 @@ export function computeSplit(input: SplitInput): SplitResult {
     }
   }
 
+  // 全員の理論値が丸め単位ちょうどで、かつ理論値の合計が総額と一致すれば端数は出ない。
+  // このとき丸め・差額処理はいずれも働かないため、どのモードでも結果は同じになる。
+  const isMultipleOfUnit = (v: number) =>
+    Math.abs(v / roundingUnit - Math.round(v / roundingUnit)) < EPSILON;
+  const theoreticalCollected = fixedSum + (weightSum > 0 ? remaining : 0);
+  const isExact = theoreticalCollected === total && rawShares.every(isMultipleOfUnit);
+
   const collected = [...payments.values()].reduce((a, b) => a + b, 0);
   return {
     payments: members.map((m) => ({ memberId: m.id, amount: payments.get(m.id) ?? 0 })),
     collected,
     surplus: collected - total,
+    isExact,
     warnings,
   };
 }

@@ -6,11 +6,20 @@ interface Props {
   roundingUnit: RoundingUnit;
   policy: RemainderPolicy;
   members: Member[];
+  /** ちょうど割り切れる場合は差額の処理を選ばせない */
+  isExact: boolean;
   onUnitChange: (unit: RoundingUnit) => void;
   onPolicyChange: (policy: RemainderPolicy) => void;
 }
 
-export function RoundingOptions({ roundingUnit, policy, members, onUnitChange, onPolicyChange }: Props) {
+export function RoundingOptions({
+  roundingUnit,
+  policy,
+  members,
+  isExact,
+  onUnitChange,
+  onPolicyChange,
+}: Props) {
   return (
     <div className="rounding-options">
       <h2>⚙️ 端数の設定</h2>
@@ -28,6 +37,12 @@ export function RoundingOptions({ roundingUnit, policy, members, onUnitChange, o
           ))}
         </select>
       </div>
+      {isExact ? (
+        <p className="exact-note">
+          ✓ ちょうど割り切れるため、差額の処理は不要です
+        </p>
+      ) : (
+      <>
       <div className="option-row">
         <label htmlFor="remainder-policy">差額の処理</label>
         <select
@@ -67,6 +82,8 @@ export function RoundingOptions({ roundingUnit, policy, members, onUnitChange, o
             ))}
           </select>
         </div>
+      )}
+      </>
       )}
     </div>
   );
